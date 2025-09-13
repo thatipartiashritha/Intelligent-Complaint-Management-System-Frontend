@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 
@@ -7,19 +7,106 @@ const SignupForm = () => {
     name: "",
     email: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    district: ""
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [districts, setDistricts] = useState([]);
+  const [districtsLoading, setDistrictsLoading] = useState(true);
+  const [districtSearch, setDistrictSearch] = useState("");
+  const [showDistrictDropdown, setShowDistrictDropdown] = useState(false);
+  const [filteredDistricts, setFilteredDistricts] = useState([]);
+  const districtInputRef = useRef(null);
+  const districtDropdownRef = useRef(null);
   const navigate = useNavigate();
+
+  // Fetch districts from API
+  useEffect(() => {
+    const fetchDistricts = async () => {
+      try {
+        const response = await axios.get("http://localhost:3000/api/districts");
+        if (response.data && Array.isArray(response.data)) {
+          setDistricts(response.data);
+          setFilteredDistricts(response.data);
+        } else {
+          console.error("Invalid districts data format:", response.data);
+          setDistricts([]);
+          setFilteredDistricts([]);
+        }
+      } catch (err) {
+        console.error("Error fetching districts:", err);
+        setDistricts([]);
+        setFilteredDistricts([]);
+      } finally {
+        setDistrictsLoading(false);
+      }
+    };
+
+    fetchDistricts();
+  }, []);
+
+  // Filter districts based on search input
+  useEffect(() => {
+    if (districtSearch.trim() === "") {
+      setFilteredDistricts(districts);
+    } else {
+      const filtered = districts.filter(district =>
+        district.toLowerCase().includes(districtSearch.toLowerCase())
+      );
+      setFilteredDistricts(filtered);
+    }
+  }, [districtSearch, districts]);
+
+  // Handle clicking outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (districtDropdownRef.current && !districtDropdownRef.current.contains(event.target)) {
+        setShowDistrictDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
+  };
+
+  const handleDistrictSearch = (e) => {
+    const value = e.target.value;
+    setDistrictSearch(value);
+    setFormData({
+      ...formData,
+      district: value
+    });
+    setShowDistrictDropdown(true);
+  };
+
+  const handleDistrictSelect = (district) => {
+    setFormData({
+      ...formData,
+      district: district
+    });
+    setDistrictSearch(district);
+    setShowDistrictDropdown(false);
+  };
+
+  const handleDistrictFocus = (e) => {
+    e.target.style.borderColor = "#1b4480";
+    setShowDistrictDropdown(true);
+  };
+
+  const handleDistrictBlur = (e) => {
+    e.target.style.borderColor = "#d6d6d6";
   };
 
   const handleSubmit = async (e) => {
@@ -36,6 +123,21 @@ const SignupForm = () => {
       return;
     }
 
+    if (!formData.district) {
+      setError("Please select your district");
+      return;
+    }
+
+    // Check if the entered district exists in the list
+    const districtExists = districts.some(district => 
+      district.toLowerCase() === formData.district.toLowerCase()
+    );
+    
+    if (!districtExists) {
+      setError("Please select a valid district from the list");
+      return;
+    }
+
     setLoading(true);
     
     try {
@@ -43,6 +145,7 @@ const SignupForm = () => {
         name: formData.name,
         email: formData.email,
         password: formData.password,
+        district: formData.district,
       });
 
       if (response.status === 201) {
@@ -82,7 +185,7 @@ const SignupForm = () => {
         borderBottom: "1px solid #1b4480"
       }}>
         <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 20px" }}>
-           An official website 
+          🇺🇸 An official website of the United States government
         </div>
       </div>
 
@@ -132,7 +235,7 @@ const SignupForm = () => {
                 color: "#565c65",
                 fontWeight: "400"
               }}>
-                Intelligent Complaint Management System
+                Incident & Complaint Management System
               </p>
             </div>
           </div>
@@ -529,7 +632,7 @@ const SignupForm = () => {
                 </div>
 
                 {/* Confirm Password Field */}
-                <div style={{ marginBottom: "24px" }}>
+                <div style={{ marginBottom: "20px" }}>
                   <label style={{
                     display: "block",
                     marginBottom: "8px",
@@ -589,6 +692,126 @@ const SignupForm = () => {
                   </div>
                 </div>
 
+                {/* District Field - Searchable Dropdown */}
+                <div style={{ marginBottom: "24px", position: "relative" }} ref={districtDropdownRef}>
+                  <label style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontSize: "16px",
+                    fontWeight: "600",
+                    color: "#1b4480"
+                  }}>
+                    District
+                    <span style={{ color: "#d54309", marginLeft: "4px" }}>*</span>
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      ref={districtInputRef}
+                      type="text"
+                      value={districtSearch}
+                      onChange={handleDistrictSearch}
+                      onFocus={handleDistrictFocus}
+                      onBlur={handleDistrictBlur}
+                      disabled={loading || districtsLoading}
+                      placeholder={districtsLoading ? "Loading districts..." : "Type to search districts..."}
+                      style={{
+                        width: "100%",
+                        padding: "12px 40px 12px 16px",
+                        border: "2px solid #d6d6d6",
+                        borderRadius: "4px",
+                        fontSize: "16px",
+                        fontFamily: "inherit",
+                        boxSizing: "border-box",
+                        backgroundColor: loading || districtsLoading ? "#f0f0f0" : "white",
+                        outline: "none",
+                        transition: "border-color 0.2s ease",
+                        cursor: loading || districtsLoading ? "not-allowed" : "text"
+                      }}
+                    />
+                    <div style={{
+                      position: "absolute",
+                      right: "12px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      color: "#565c65",
+                      fontSize: "16px",
+                      pointerEvents: "none"
+                    }}>
+                      🔍
+                    </div>
+                  </div>
+
+                  {/* Dropdown List */}
+                  {showDistrictDropdown && filteredDistricts.length > 0 && (
+                    <div style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: "0",
+                      right: "0",
+                      backgroundColor: "white",
+                      border: "1px solid #d6d6d6",
+                      borderTop: "none",
+                      borderRadius: "0 0 4px 4px",
+                      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
+                      maxHeight: "200px",
+                      overflowY: "auto",
+                      zIndex: 1000
+                    }}>
+                      {filteredDistricts.map((district, index) => (
+                        <div
+                          key={index}
+                          onClick={() => handleDistrictSelect(district)}
+                          style={{
+                            padding: "12px 16px",
+                            cursor: "pointer",
+                            fontSize: "16px",
+                            color: "#1b4480",
+                            borderBottom: index < filteredDistricts.length - 1 ? "1px solid #f0f0f0" : "none",
+                            transition: "background-color 0.2s ease"
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.backgroundColor = "#f0f0f0";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.backgroundColor = "white";
+                          }}
+                        >
+                          {district}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* No results message */}
+                  {showDistrictDropdown && filteredDistricts.length === 0 && districtSearch.trim() !== "" && (
+                    <div style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: "0",
+                      right: "0",
+                      backgroundColor: "white",
+                      border: "1px solid #d6d6d6",
+                      borderTop: "none",
+                      borderRadius: "0 0 4px 4px",
+                      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
+                      padding: "12px 16px",
+                      fontSize: "14px",
+                      color: "#565c65",
+                      zIndex: 1000
+                    }}>
+                      No districts found matching "{districtSearch}"
+                    </div>
+                  )}
+
+                  <p style={{
+                    margin: "4px 0 0 0",
+                    fontSize: "12px",
+                    color: "#565c65"
+                  }}>
+                    Type to search and select your district
+                  </p>
+                </div>
+
                 {/* Error Message */}
                 {error && (
                   <div style={{
@@ -611,28 +834,28 @@ const SignupForm = () => {
                 {/* Submit Button */}
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || districtsLoading}
                   style={{
                     width: "100%",
                     padding: "16px",
-                    backgroundColor: loading ? "#565c65" : "#00a91c",
+                    backgroundColor: loading || districtsLoading ? "#565c65" : "#00a91c",
                     color: "white",
                     border: "none",
                     borderRadius: "4px",
                     fontSize: "16px",
                     fontWeight: "600",
-                    cursor: loading ? "not-allowed" : "pointer",
+                    cursor: loading || districtsLoading ? "not-allowed" : "pointer",
                     transition: "background-color 0.2s ease",
                     textTransform: "uppercase",
                     letterSpacing: "0.5px"
                   }}
                   onMouseEnter={(e) => {
-                    if (!loading) {
+                    if (!loading && !districtsLoading) {
                       e.target.style.backgroundColor = "#008817";
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (!loading) {
+                    if (!loading && !districtsLoading) {
                       e.target.style.backgroundColor = "#00a91c";
                     }
                   }}
@@ -698,7 +921,7 @@ const SignupForm = () => {
             fontSize: "14px",
             color: "#565c65"
           }}>
-            © 2024 Municipal ICMS. An official website.
+            © 2024 Municipal ICMS. An official website of the United States government.
           </p>
         </div>
       </footer>
