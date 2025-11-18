@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../../App.jsx"; // Import useAuth hook
 
 const SignupForm = () => {
   const [formData, setFormData] = useState({
@@ -22,6 +23,19 @@ const SignupForm = () => {
   const districtInputRef = useRef(null);
   const districtDropdownRef = useRef(null);
   const navigate = useNavigate();
+  const { token, userRole } = useAuth(); // Use useAuth to check if already logged in
+
+  // New state for OTP
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState(""); // New state for phone number
+
+  // Redirect if already logged in as a user
+  useEffect(() => {
+    if (token && userRole === "user") {
+      navigate("/user/dashboard");
+    }
+  }, [token, userRole, navigate]);
 
   // Fetch districts from API
   useEffect(() => {
@@ -109,7 +123,7 @@ const SignupForm = () => {
     e.target.style.borderColor = "#d6d6d6";
   };
 
-  const handleSubmit = async (e) => {
+  const handleInitiateRegistration = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -144,22 +158,56 @@ const SignupForm = () => {
       const response = await axios.post("http://localhost:3000/api/auth/register", {
         name: formData.name,
         email: formData.email,
+        phoneNumber: phoneNumber, // Include phone number
         password: formData.password,
         district: formData.district,
       });
 
-      if (response.status === 201) {
-        alert("Citizen account created successfully! Please login to access municipal services.");
-        navigate("/login");
+      if (response.status === 200) {
+        alert(response.data.message);
+        setShowOtpInput(true); // Show OTP input after successful initiation
+      } else {
+        setError(response.data?.message || "Failed to initiate registration.");
       }
     } catch (err) {
-      console.error("Signup error:", err);
+      console.error("Signup initiation error:", err);
       if (err.response) {
         setError(err.response.data?.message || `Server error: ${err.response.status}`);
       } else if (err.request) {
         setError("Cannot connect to server. Please check if backend is running.");
       } else {
-        setError("Registration failed: " + err.message);
+        setError("Registration initiation failed: " + err.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await axios.post("http://localhost:3000/api/auth/verify-otp", {
+        phoneNumber,
+        otp,
+      });
+
+      if (response.data.token) {
+        alert(response.data.message);
+        navigate("/login");
+      } else {
+        setError(response.data?.message || "OTP verification failed.");
+      }
+    } catch (err) {
+      console.error("OTP verification error:", err);
+      if (err.response) {
+        setError(err.response.data?.message || `Server error: ${err.response.status}`);
+      } else if (err.request) {
+        setError("Cannot connect to server. Please check if backend is running.");
+      } else {
+        setError("OTP verification failed: " + err.message);
       }
     } finally {
       setLoading(false);
@@ -253,7 +301,7 @@ const SignupForm = () => {
             }}>
               Sign In
             </Link>
-            <Link to="/signup" style={{
+            <Link to="/admin/login" style={{
               color: "#1b4480",
               textDecoration: "none",
               fontWeight: "600",
@@ -262,7 +310,18 @@ const SignupForm = () => {
               backgroundColor: "#f0f0f0",
               borderRadius: "4px"
             }}>
-              Create Account
+              Admin Sign In
+            </Link>
+            <Link to="/staff/login" style={{
+              color: "white",
+              textDecoration: "none",
+              fontWeight: "600",
+              fontSize: "16px",
+              padding: "8px 16px",
+              backgroundColor: "#1b4480",
+              borderRadius: "4px"
+            }}>
+              Staff Sign In
             </Link>
           </nav>
         </div>
@@ -480,337 +539,432 @@ const SignupForm = () => {
                 Create Account
               </h2>
 
-              <form onSubmit={handleSubmit}>
-                {/* Name Field */}
-                <div style={{ marginBottom: "20px" }}>
-                  <label style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontSize: "16px",
-                    fontWeight: "600",
-                    color: "#1b4480"
-                  }}>
-                    Full Name
-                    <span style={{ color: "#d54309", marginLeft: "4px" }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    placeholder="Enter your full name"
-                    style={{
-                      width: "100%",
-                      padding: "12px 16px",
-                      border: "2px solid #d6d6d6",
-                      borderRadius: "4px",
-                      fontSize: "16px",
-                      fontFamily: "inherit",
-                      boxSizing: "border-box",
-                      backgroundColor: loading ? "#f0f0f0" : "white",
-                      outline: "none",
-                      transition: "border-color 0.2s ease"
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "#1b4480";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#d6d6d6";
-                    }}
-                  />
-                </div>
-
-                {/* Email Field */}
-                <div style={{ marginBottom: "20px" }}>
-                  <label style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontSize: "16px",
-                    fontWeight: "600",
-                    color: "#1b4480"
-                  }}>
-                    Email Address
-                    <span style={{ color: "#d54309", marginLeft: "4px" }}>*</span>
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                    placeholder="Enter your email address"
-                    style={{
-                      width: "100%",
-                      padding: "12px 16px",
-                      border: "2px solid #d6d6d6",
-                      borderRadius: "4px",
-                      fontSize: "16px",
-                      fontFamily: "inherit",
-                      boxSizing: "border-box",
-                      backgroundColor: loading ? "#f0f0f0" : "white",
-                      outline: "none",
-                      transition: "border-color 0.2s ease"
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "#1b4480";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#d6d6d6";
-                    }}
-                  />
-                </div>
-
-                {/* Password Field */}
-                <div style={{ marginBottom: "20px" }}>
-                  <label style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontSize: "16px",
-                    fontWeight: "600",
-                    color: "#1b4480"
-                  }}>
-                    Password
-                    <span style={{ color: "#d54309", marginLeft: "4px" }}>*</span>
-                  </label>
-                  <div style={{ position: "relative" }}>
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      required
-                      disabled={loading}
-                      placeholder="Create a strong password"
-                      style={{
-                        width: "100%",
-                        padding: "12px 50px 12px 16px",
-                        border: "2px solid #d6d6d6",
-                        borderRadius: "4px",
+              <form onSubmit={showOtpInput ? handleVerifyOtp : handleInitiateRegistration}>
+                {!showOtpInput ? (
+                  <>
+                    {/* Name Field */}
+                    <div style={{ marginBottom: "20px" }}>
+                      <label style={{
+                        display: "block",
+                        marginBottom: "8px",
                         fontSize: "16px",
-                        fontFamily: "inherit",
-                        boxSizing: "border-box",
-                        backgroundColor: loading ? "#f0f0f0" : "white",
-                        outline: "none",
-                        transition: "border-color 0.2s ease"
-                      }}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = "#1b4480";
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = "#d6d6d6";
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      style={{
-                        position: "absolute",
-                        right: "12px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "#565c65",
-                        fontSize: "14px",
-                        padding: "4px"
-                      }}
-                    >
-                      {showPassword ? "Hide" : "Show"}
-                    </button>
-                  </div>
-                  <p style={{
-                    margin: "4px 0 0 0",
-                    fontSize: "12px",
-                    color: "#565c65"
-                  }}>
-                    Password must be at least 6 characters long
-                  </p>
-                </div>
-
-                {/* Confirm Password Field */}
-                <div style={{ marginBottom: "20px" }}>
-                  <label style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontSize: "16px",
-                    fontWeight: "600",
-                    color: "#1b4480"
-                  }}>
-                    Confirm Password
-                    <span style={{ color: "#d54309", marginLeft: "4px" }}>*</span>
-                  </label>
-                  <div style={{ position: "relative" }}>
-                    <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      required
-                      disabled={loading}
-                      placeholder="Confirm your password"
-                      style={{
-                        width: "100%",
-                        padding: "12px 50px 12px 16px",
-                        border: "2px solid #d6d6d6",
-                        borderRadius: "4px",
-                        fontSize: "16px",
-                        fontFamily: "inherit",
-                        boxSizing: "border-box",
-                        backgroundColor: loading ? "#f0f0f0" : "white",
-                        outline: "none",
-                        transition: "border-color 0.2s ease"
-                      }}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = "#1b4480";
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = "#d6d6d6";
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      style={{
-                        position: "absolute",
-                        right: "12px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "#565c65",
-                        fontSize: "14px",
-                        padding: "4px"
-                      }}
-                    >
-                      {showConfirmPassword ? "Hide" : "Show"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* District Field - Searchable Dropdown */}
-                <div style={{ marginBottom: "24px", position: "relative" }} ref={districtDropdownRef}>
-                  <label style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontSize: "16px",
-                    fontWeight: "600",
-                    color: "#1b4480"
-                  }}>
-                    District
-                    <span style={{ color: "#d54309", marginLeft: "4px" }}>*</span>
-                  </label>
-                  <div style={{ position: "relative" }}>
-                    <input
-                      ref={districtInputRef}
-                      type="text"
-                      value={districtSearch}
-                      onChange={handleDistrictSearch}
-                      onFocus={handleDistrictFocus}
-                      onBlur={handleDistrictBlur}
-                      disabled={loading || districtsLoading}
-                      placeholder={districtsLoading ? "Loading districts..." : "Type to search districts..."}
-                      style={{
-                        width: "100%",
-                        padding: "12px 40px 12px 16px",
-                        border: "2px solid #d6d6d6",
-                        borderRadius: "4px",
-                        fontSize: "16px",
-                        fontFamily: "inherit",
-                        boxSizing: "border-box",
-                        backgroundColor: loading || districtsLoading ? "#f0f0f0" : "white",
-                        outline: "none",
-                        transition: "border-color 0.2s ease",
-                        cursor: loading || districtsLoading ? "not-allowed" : "text"
-                      }}
-                    />
-                    <div style={{
-                      position: "absolute",
-                      right: "12px",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      color: "#565c65",
-                      fontSize: "16px",
-                      pointerEvents: "none"
-                    }}>
-                      🔍
+                        fontWeight: "600",
+                        color: "#1b4480"
+                      }}>
+                        Full Name
+                        <span style={{ color: "#d54309", marginLeft: "4px" }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        required
+                        disabled={loading}
+                        placeholder="Enter your full name"
+                        style={{
+                          width: "100%",
+                          padding: "12px 16px",
+                          border: "2px solid #d6d6d6",
+                          borderRadius: "4px",
+                          fontSize: "16px",
+                          fontFamily: "inherit",
+                          boxSizing: "border-box",
+                          backgroundColor: loading ? "#f0f0f0" : "white",
+                          outline: "none",
+                          transition: "border-color 0.2s ease"
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = "#1b4480";
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = "#d6d6d6";
+                        }}
+                      />
                     </div>
-                  </div>
 
-                  {/* Dropdown List */}
-                  {showDistrictDropdown && filteredDistricts.length > 0 && (
-                    <div style={{
-                      position: "absolute",
-                      top: "100%",
-                      left: "0",
-                      right: "0",
-                      backgroundColor: "white",
-                      border: "1px solid #d6d6d6",
-                      borderTop: "none",
-                      borderRadius: "0 0 4px 4px",
-                      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
-                      maxHeight: "200px",
-                      overflowY: "auto",
-                      zIndex: 1000
-                    }}>
-                      {filteredDistricts.map((district, index) => (
-                        <div
-                          key={index}
-                          onClick={() => handleDistrictSelect(district)}
+                    {/* Email Field */}
+                    <div style={{ marginBottom: "20px" }}>
+                      <label style={{
+                        display: "block",
+                        marginBottom: "8px",
+                        fontSize: "16px",
+                        fontWeight: "600",
+                        color: "#1b4480"
+                      }}>
+                        Email Address
+                        <span style={{ color: "#d54309", marginLeft: "4px" }}>*</span>
+                      </label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        required
+                        disabled={loading}
+                        placeholder="Enter your email address"
+                        style={{
+                          width: "100%",
+                          padding: "12px 16px",
+                          border: "2px solid #d6d6d6",
+                          borderRadius: "4px",
+                          fontSize: "16px",
+                          fontFamily: "inherit",
+                          boxSizing: "border-box",
+                          backgroundColor: loading ? "#f0f0f0" : "white",
+                          outline: "none",
+                          transition: "border-color 0.2s ease"
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = "#1b4480";
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = "#d6d6d6";
+                        }}
+                      />
+                    </div>
+
+                    {/* Phone Number Field */}
+                    <div style={{ marginBottom: "20px" }}>
+                      <label style={{
+                        display: "block",
+                        marginBottom: "8px",
+                        fontSize: "16px",
+                        fontWeight: "600",
+                        color: "#1b4480"
+                      }}>
+                        Phone Number
+                        <span style={{ color: "#d54309", marginLeft: "4px" }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="phoneNumber"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        required
+                        disabled={loading}
+                        placeholder="Enter your phone number"
+                        style={{
+                          width: "100%",
+                          padding: "12px 16px",
+                          border: "2px solid #d6d6d6",
+                          borderRadius: "4px",
+                          fontSize: "16px",
+                          fontFamily: "inherit",
+                          boxSizing: "border-box",
+                          backgroundColor: loading ? "#f0f0f0" : "white",
+                          outline: "none",
+                          transition: "border-color 0.2s ease"
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = "#1b4480";
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = "#d6d6d6";
+                        }}
+                      />
+                    </div>
+
+                    {/* Password Field */}
+                    <div style={{ marginBottom: "20px" }}>
+                      <label style={{
+                        display: "block",
+                        marginBottom: "8px",
+                        fontSize: "16px",
+                        fontWeight: "600",
+                        color: "#1b4480"
+                      }}>
+                        Password
+                        <span style={{ color: "#d54309", marginLeft: "4px" }}>*</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          name="password"
+                          value={formData.password}
+                          onChange={handleChange}
+                          required
+                          disabled={loading}
+                          placeholder="Create a strong password"
                           style={{
-                            padding: "12px 16px",
-                            cursor: "pointer",
+                            width: "100%",
+                            padding: "12px 50px 12px 16px",
+                            border: "2px solid #d6d6d6",
+                            borderRadius: "4px",
                             fontSize: "16px",
-                            color: "#1b4480",
-                            borderBottom: index < filteredDistricts.length - 1 ? "1px solid #f0f0f0" : "none",
-                            transition: "background-color 0.2s ease"
+                            fontFamily: "inherit",
+                            boxSizing: "border-box",
+                            backgroundColor: loading ? "#f0f0f0" : "white",
+                            outline: "none",
+                            transition: "border-color 0.2s ease"
                           }}
-                          onMouseEnter={(e) => {
-                            e.target.style.backgroundColor = "#f0f0f0";
+                          onFocus={(e) => {
+                            e.target.style.borderColor = "#1b4480";
                           }}
-                          onMouseLeave={(e) => {
-                            e.target.style.backgroundColor = "white";
+                          onBlur={(e) => {
+                            e.target.style.borderColor = "#d6d6d6";
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          style={{
+                            position: "absolute",
+                            right: "12px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: "#565c65",
+                            fontSize: "14px",
+                            padding: "4px"
                           }}
                         >
-                          {district}
+                          {showPassword ? "Hide" : "Show"}
+                        </button>
+                      </div>
+                      <p style={{
+                        margin: "4px 0 0 0",
+                        fontSize: "12px",
+                        color: "#565c65"
+                      }}>
+                        Password must be at least 6 characters long
+                      </p>
+                    </div>
+
+                    {/* Confirm Password Field */}
+                    <div style={{ marginBottom: "20px" }}>
+                      <label style={{
+                        display: "block",
+                        marginBottom: "8px",
+                        fontSize: "16px",
+                        fontWeight: "600",
+                        color: "#1b4480"
+                      }}>
+                        Confirm Password
+                        <span style={{ color: "#d54309", marginLeft: "4px" }}>*</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          name="confirmPassword"
+                          value={formData.confirmPassword}
+                          onChange={handleChange}
+                          required
+                          disabled={loading}
+                          placeholder="Confirm your password"
+                          style={{
+                            width: "100%",
+                            padding: "12px 50px 12px 16px",
+                            border: "2px solid #d6d6d6",
+                            borderRadius: "4px",
+                            fontSize: "16px",
+                            fontFamily: "inherit",
+                            boxSizing: "border-box",
+                            backgroundColor: loading ? "#f0f0f0" : "white",
+                            outline: "none",
+                            transition: "border-color 0.2s ease"
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.borderColor = "#1b4480";
+                          }}
+                          onBlur={(e) => {
+                            e.target.style.borderColor = "#d6d6d6";
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          style={{
+                            position: "absolute",
+                            right: "12px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: "#565c65",
+                            fontSize: "14px",
+                            padding: "4px"
+                          }}
+                        >
+                          {showConfirmPassword ? "Hide" : "Show"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* District Field - Searchable Dropdown */}
+                    <div style={{ marginBottom: "24px", position: "relative" }} ref={districtDropdownRef}>
+                      <label style={{
+                        display: "block",
+                        marginBottom: "8px",
+                        fontSize: "16px",
+                        fontWeight: "600",
+                        color: "#1b4480"
+                      }}>
+                        District
+                        <span style={{ color: "#d54309", marginLeft: "4px" }}>*</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <input
+                          ref={districtInputRef}
+                          type="text"
+                          value={districtSearch}
+                          onChange={handleDistrictSearch}
+                          onFocus={handleDistrictFocus}
+                          onBlur={handleDistrictBlur}
+                          disabled={loading || districtsLoading}
+                          placeholder={districtsLoading ? "Loading districts..." : "Type to search districts..."}
+                          style={{
+                            width: "100%",
+                            padding: "12px 40px 12px 16px",
+                            border: "2px solid #d6d6d6",
+                            borderRadius: "4px",
+                            fontSize: "16px",
+                            fontFamily: "inherit",
+                            boxSizing: "border-box",
+                            backgroundColor: loading || districtsLoading ? "#f0f0f0" : "white",
+                            outline: "none",
+                            transition: "border-color 0.2s ease"
+                          }}
+                        />
+                        <div style={{
+                          position: "absolute",
+                          right: "12px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          color: "#565c65",
+                          fontSize: "16px",
+                          pointerEvents: "none"
+                        }}>
+                          🔍
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      </div>
 
-                  {/* No results message */}
-                  {showDistrictDropdown && filteredDistricts.length === 0 && districtSearch.trim() !== "" && (
-                    <div style={{
-                      position: "absolute",
-                      top: "100%",
-                      left: "0",
-                      right: "0",
-                      backgroundColor: "white",
-                      border: "1px solid #d6d6d6",
-                      borderTop: "none",
-                      borderRadius: "0 0 4px 4px",
-                      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
-                      padding: "12px 16px",
-                      fontSize: "14px",
+                      {/* Dropdown List */}
+                      {showDistrictDropdown && filteredDistricts.length > 0 && (
+                        <div style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: "0",
+                          right: "0",
+                          backgroundColor: "white",
+                          border: "1px solid #d6d6d6",
+                          borderTop: "none",
+                          borderRadius: "0 0 4px 4px",
+                          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
+                          maxHeight: "200px",
+                          overflowY: "auto",
+                          zIndex: 1000
+                        }}>
+                          {filteredDistricts.map((district, index) => (
+                            <div
+                              key={index}
+                              onClick={() => handleDistrictSelect(district)}
+                              style={{
+                                padding: "12px 16px",
+                                cursor: "pointer",
+                                fontSize: "16px",
+                                color: "#1b4480",
+                                borderBottom: index < filteredDistricts.length - 1 ? "1px solid #f0f0f0" : "none",
+                                transition: "background-color 0.2s ease"
+                              }}
+                              onMouseEnter={(e) => {
+                                e.target.style.backgroundColor = "#f0f0f0";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.target.style.backgroundColor = "white";
+                              }}
+                            >
+                              {district}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* No results message */}
+                      {showDistrictDropdown && filteredDistricts.length === 0 && districtSearch.trim() !== "" && (
+                        <div style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: "0",
+                          right: "0",
+                          backgroundColor: "white",
+                          border: "1px solid #d6d6d6",
+                          borderTop: "none",
+                          borderRadius: "0 0 4px 4px",
+                          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
+                          padding: "12px 16px",
+                          fontSize: "14px",
+                          color: "#565c65",
+                          zIndex: 1000
+                        }}>
+                          No districts found matching "{districtSearch}"
+                        </div>
+                      )}
+
+                      <p style={{
+                        margin: "4px 0 0 0",
+                        fontSize: "12px",
+                        color: "#565c65"
+                      }}>
+                        Type to search and select your district
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* OTP Input Field */}
+                    <div style={{ marginBottom: "20px" }}>
+                      <label style={{
+                        display: "block",
+                        marginBottom: "8px",
+                        fontSize: "16px",
+                        fontWeight: "600",
+                        color: "#1b4480"
+                      }}>
+                        OTP
+                        <span style={{ color: "#d54309", marginLeft: "4px" }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="otp"
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value)}
+                        required
+                        disabled={loading}
+                        placeholder="Enter the OTP sent to your phone"
+                        style={{
+                          width: "100%",
+                          padding: "12px 16px",
+                          border: "2px solid #d6d6d6",
+                          borderRadius: "4px",
+                          fontSize: "16px",
+                          fontFamily: "inherit",
+                          boxSizing: "border-box",
+                          backgroundColor: loading ? "#f0f0f0" : "white",
+                          outline: "none",
+                          transition: "border-color 0.2s ease"
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = "#1b4480";
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = "#d6d6d6";
+                        }}
+                      />
+                    </div>
+                    <p style={{
+                      margin: "4px 0 20px 0",
+                      fontSize: "12px",
                       color: "#565c65",
-                      zIndex: 1000
+                      textAlign: "center"
                     }}>
-                      No districts found matching "{districtSearch}"
-                    </div>
-                  )}
-
-                  <p style={{
-                    margin: "4px 0 0 0",
-                    fontSize: "12px",
-                    color: "#565c65"
-                  }}>
-                    Type to search and select your district
-                  </p>
-                </div>
+                      A one-time password has been sent to your phone number: **{phoneNumber}**
+                    </p>
+                  </>
+                )}
 
                 {/* Error Message */}
                 {error && (
@@ -860,7 +1014,7 @@ const SignupForm = () => {
                     }
                   }}
                 >
-                  {loading ? "Creating Account..." : "Create Citizen Account"}
+                  {loading ? (showOtpInput ? "Verifying OTP..." : "Initiating Registration...") : (showOtpInput ? "Verify OTP" : "Create Citizen Account")}
                 </button>
               </form>
 

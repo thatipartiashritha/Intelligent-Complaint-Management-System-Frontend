@@ -1,16 +1,16 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../../App.jsx"; // Import useAuth hook
+import { useAuth } from "../../App.jsx"; // Adjust path as necessary
 
-const LoginForm = () => {
-  const [phoneNumber, setPhoneNumber] = useState("");
+const AdminLoginForm = () => {
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth(); // Use login function from useAuth
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -18,21 +18,19 @@ const LoginForm = () => {
     setLoading(true);
     
     try {
-      const response = await axios.post("http://localhost:3000/api/auth/login", {
-        phoneNumber,
+      const response = await axios.post("http://localhost:3000/api/admin/auth/login", {
+        phone,
         password,
       });
 
       if (response.data.token) {
-        // Determine role and redirect accordingly
-        const role = "user"; // Assuming this is for regular users
-        login(response.data.token, role, response.data.userEmail, response.data.userId); // Store userEmail and userId
-        navigate("/user/dashboard");
+        login(response.data.token, "admin", phone, response.data.adminId); // Store adminId and use phone as userEmail
+        navigate("/admin/dashboard");
       } else {
         setError("No token received from server");
       }
     } catch (err) {
-      console.error("Login error:", err);
+      console.error("Admin Login error:", err);
       if (err.response) {
         setError(err.response.data?.message || `Server error: ${err.response.status}`);
       } else if (err.request) {
@@ -106,7 +104,7 @@ const LoginForm = () => {
                 color: "#1b4480",
                 lineHeight: "1.2"
               }}>
-                Municipal ICMS
+                Municipal ICMS Admin
               </h1>
               <p style={{
                 margin: "0",
@@ -114,23 +112,23 @@ const LoginForm = () => {
                 color: "#565c65",
                 fontWeight: "400"
               }}>
-                Intelligent  Complaint Management System
+                Intelligent Complaint Management System
               </p>
             </div>
           </div>
 
-          {/* Navigation */}
+          {/* Navigation - could be extended later for multi-role login links */}
           <nav style={{ display: "flex", gap: "24px", alignItems: "center" }}>
-            <Link to="/admin/login" style={{
-              color: "white",
+            <Link to="/login" style={{
+              color: "#1b4480",
               textDecoration: "none",
               fontWeight: "600",
               fontSize: "16px",
               padding: "8px 16px",
-              backgroundColor: "#1b4480",
+              backgroundColor: "#f0f0f0",
               borderRadius: "4px"
             }}>
-              Admin Sign In
+              User Sign In
             </Link>
             <Link to="/staff/login" style={{
               color: "white",
@@ -171,7 +169,7 @@ const LoginForm = () => {
               marginBottom: "24px",
               lineHeight: "1.2"
             }}>
-              Access Your Municipal Services
+              Administrator Access
             </h2>
             
             <p style={{
@@ -180,114 +178,8 @@ const LoginForm = () => {
               marginBottom: "32px",
               lineHeight: "1.5"
             }}>
-              Sign in to your account to submit complaints, track requests, and manage your municipal service interactions.
+              Sign in with your administrator credentials to manage complaints, users, and staff.
             </p>
-
-            {/* Benefits List */}
-            <div style={{ marginBottom: "40px" }}>
-              <h3 style={{
-                fontSize: "20px",
-                fontWeight: "600",
-                color: "#1b4480",
-                marginBottom: "16px"
-              }}>
-                With your account, you can:
-              </h3>
-              <ul style={{
-                listStyle: "none",
-                padding: "0",
-                margin: "0"
-              }}>
-                <li style={{
-                  display: "flex",
-                  alignItems: "center",
-                  marginBottom: "12px",
-                  fontSize: "16px",
-                  color: "#565c65"
-                }}>
-                  <span style={{
-                    width: "24px",
-                    height: "24px",
-                    backgroundColor: "#00a91c",
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginRight: "12px",
-                    color: "white",
-                    fontSize: "14px",
-                    fontWeight: "bold"
-                  }}>✓</span>
-                  Submit and track complaint requests
-                </li>
-                <li style={{
-                  display: "flex",
-                  alignItems: "center",
-                  marginBottom: "12px",
-                  fontSize: "16px",
-                  color: "#565c65"
-                }}>
-                  <span style={{
-                    width: "24px",
-                    height: "24px",
-                    backgroundColor: "#00a91c",
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginRight: "12px",
-                    color: "white",
-                    fontSize: "14px",
-                    fontWeight: "bold"
-                  }}>✓</span>
-                  Receive status updates via email
-                </li>
-                <li style={{
-                  display: "flex",
-                  alignItems: "center",
-                  marginBottom: "12px",
-                  fontSize: "16px",
-                  color: "#565c65"
-                }}>
-                  <span style={{
-                    width: "24px",
-                    height: "24px",
-                    backgroundColor: "#00a91c",
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginRight: "12px",
-                    color: "white",
-                    fontSize: "14px",
-                    fontWeight: "bold"
-                  }}>✓</span>
-                  Access your service history
-                </li>
-                <li style={{
-                  display: "flex",
-                  alignItems: "center",
-                  marginBottom: "12px",
-                  fontSize: "16px",
-                  color: "#565c65"
-                }}>
-                  <span style={{
-                    width: "24px",
-                    height: "24px",
-                    backgroundColor: "#00a91c",
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginRight: "12px",
-                    color: "white",
-                    fontSize: "14px",
-                    fontWeight: "bold"
-                  }}>✓</span>
-                  Manage your profile information
-                </li>
-              </ul>
-            </div>
 
             {/* Security Notice */}
             <div style={{
@@ -303,7 +195,7 @@ const LoginForm = () => {
                 fontWeight: "600",
                 color: "#1b4480"
               }}>
-                🔒 Secure & Private
+                🔒 Secure Access
               </h4>
               <p style={{
                 margin: "0",
@@ -311,7 +203,7 @@ const LoginForm = () => {
                 color: "#565c65",
                 lineHeight: "1.4"
               }}>
-                Your information is protected with government-grade security. We use encryption and follow federal privacy standards.
+                This is an administrative portal. Unauthorized access is prohibited.
               </p>
             </div>
           </div>
@@ -331,7 +223,7 @@ const LoginForm = () => {
                 fontWeight: "700",
                 color: "#1b4480"
               }}>
-                Sign In
+                Admin Sign In
               </h2>
 
               <form onSubmit={handleSubmit}>
@@ -349,11 +241,11 @@ const LoginForm = () => {
                   </label>
                   <input
                     type="text"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
                     required
                     disabled={loading}
-                    placeholder="Enter your phone number"
+                    placeholder="Enter your admin phone number"
                     style={{
                       width: "100%",
                       padding: "12px 16px",
@@ -483,44 +375,9 @@ const LoginForm = () => {
                     }
                   }}
                 >
-                  {loading ? "Signing In..." : "Sign In"}
+                  {loading ? "Signing In..." : "Sign In as Admin"}
                 </button>
               </form>
-
-              {/* Footer Links */}
-              <div style={{
-                marginTop: "24px",
-                paddingTop: "24px",
-                borderTop: "1px solid #d6d6d6",
-                textAlign: "center"
-              }}>
-                <p style={{
-                  margin: "0 0 16px 0",
-                  fontSize: "14px",
-                  color: "#565c65"
-                }}>
-                  Don't have an account?
-                </p>
-                <Link
-                  to="/signup"
-                  style={{
-                    color: "#1b4480",
-                    textDecoration: "none",
-                    fontSize: "16px",
-                    fontWeight: "600",
-                    borderBottom: "1px solid #1b4480",
-                    paddingBottom: "2px"
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.color = "#0f3a6b";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.color = "#1b4480";
-                  }}
-                >
-                  Create an account
-                </Link>
-              </div>
             </div>
           </div>
         </div>
@@ -552,4 +409,4 @@ const LoginForm = () => {
   );
 };
 
-export default LoginForm;
+export default AdminLoginForm;
