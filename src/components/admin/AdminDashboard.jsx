@@ -3,6 +3,9 @@ import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../../App.jsx";
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api";
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { userEmail, logout, token, userRole, userId } = useAuth();
@@ -12,11 +15,15 @@ const AdminDashboard = () => {
   const [error, setError] = useState("");
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [newStaff, setNewStaff] = useState({
+    name: "", // Add name field
     email: "",
     phone: "",
     password: "",
     district: "",
+    address: "", // Add address field
   });
+  const [addStaffLoading, setAddStaffLoading] = useState(false);
+  const [addStaffError, setAddStaffError] = useState("");
   const [districts, setDistricts] = useState([]);
   const [districtsLoading, setDistrictsLoading] = useState(true);
 
@@ -38,7 +45,7 @@ const AdminDashboard = () => {
 
   const fetchDistricts = async () => {
     try {
-      const response = await axios.get("http://localhost:3000/api/districts");
+      const response = await axios.get(`${API_BASE_URL}/districts`);
       if (response.data && Array.isArray(response.data)) {
         setDistricts(response.data);
       } else {
@@ -56,10 +63,10 @@ const AdminDashboard = () => {
   const fetchData = async () => {
     try {
       const [complaintsResponse, staffResponse] = await Promise.all([
-        axios.get("http://localhost:3000/api/admin/complaints", {
+        axios.get(`${API_BASE_URL}/admin/complaints`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        axios.get("http://localhost:3000/api/admin/staff", {
+        axios.get(`${API_BASE_URL}/admin/staff`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -82,7 +89,7 @@ const AdminDashboard = () => {
   const handleAssignComplaint = async (complaintId, staffId) => {
     try {
       await axios.put(
-        `http://localhost:3000/api/admin/complaints/${complaintId}/assign`,
+        `${API_BASE_URL}/admin/complaints/${complaintId}/assign`,
         { staffId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -100,17 +107,26 @@ const AdminDashboard = () => {
     setLoading(true);
     try {
       await axios.post(
-        "http://localhost:3000/api/admin/staff",
+        `${API_BASE_URL}/admin/staff`,
         {
+          name: newStaff.name, // Include name
           email: newStaff.email,
           phone: newStaff.phone,
           password: newStaff.password,
           district: newStaff.district,
+          address: newStaff.address, // Include address
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       alert("Staff added successfully!");
-      setNewStaff({ email: "", phone: "", password: "", district: "" });
+      setNewStaff({
+        name: "", // Reset name
+        email: "",
+        phone: "",
+        password: "",
+        district: "",
+        address: "", // Reset address
+      });
       setShowAddStaffModal(false);
       fetchData(); // Refresh data
     } catch (err) {
@@ -230,7 +246,7 @@ const AdminDashboard = () => {
         <div
           style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 20px" }}
         >
-          An official website
+          An official website of Govt. Of India.
         </div>
       </div>
 
@@ -833,7 +849,7 @@ const AdminDashboard = () => {
               color: "#565c65",
             }}
           >
-            © 2024 Municipal ICMS. An official website .
+            © 2024 Municipal ICMS. An official website of Govt. Of India.
           </p>
         </div>
       </footer>
@@ -885,10 +901,44 @@ const AdminDashboard = () => {
                   color: "#6c757d",
                 }}
               >
-                ×
+                &times;
               </button>
             </div>
             <form onSubmit={handleAddStaff}>
+              {" "}
+              {/* Add form and onSubmit handler */}
+              {/* Name Field */}
+              <div style={{ marginBottom: "20px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "5px",
+                    fontWeight: "bold",
+                    color: "#495057",
+                  }}
+                >
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={newStaff.name}
+                  onChange={(e) =>
+                    setNewStaff({ ...newStaff, name: e.target.value })
+                  }
+                  required
+                  disabled={loading}
+                  placeholder="Enter staff name"
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    border: "1px solid #ced4da",
+                    borderRadius: "5px",
+                    fontSize: "16px",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
               {/* Email Field */}
               <div style={{ marginBottom: "20px" }}>
                 <label
@@ -975,6 +1025,37 @@ const AdminDashboard = () => {
                   required
                   disabled={loading}
                   placeholder="Enter staff password"
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    border: "1px solid #ced4da",
+                    borderRadius: "5px",
+                    fontSize: "16px",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+              {/* Address Field */}
+              <div style={{ marginBottom: "20px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "5px",
+                    fontWeight: "bold",
+                    color: "#495057",
+                  }}
+                >
+                  Address
+                </label>
+                <input
+                  type="text"
+                  name="address"
+                  value={newStaff.address}
+                  onChange={(e) =>
+                    setNewStaff({ ...newStaff, address: e.target.value })
+                  }
+                  disabled={loading}
+                  placeholder="Enter staff address (optional)"
                   style={{
                     width: "100%",
                     padding: "10px",
@@ -1084,7 +1165,8 @@ const AdminDashboard = () => {
                   {loading ? "Adding Staff..." : "Add Staff"}
                 </button>
               </div>
-            </form>
+            </form>{" "}
+            {/* Close form tag */}
           </div>
         </div>
       )}
