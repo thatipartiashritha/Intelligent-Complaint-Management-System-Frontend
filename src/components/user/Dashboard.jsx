@@ -2,42 +2,44 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import ComplaintForm from "../complaints/complaintForm.jsx";
+import { useAuth } from "../../App.jsx"; // Import useAuth hook
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { userEmail, logout, token, userRole } = useAuth(); // Use useAuth hook
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showComplaintForm, setShowComplaintForm] = useState(false);
 
-  // Get user information from localStorage
-  const userEmail = localStorage.getItem("userEmail");
-  const token = localStorage.getItem("token");
-
-  // If no token, redirect to login
-  if (!token) {
-    navigate("/login");
-    return null;
-  }
+  // If no token or not a user, redirect to login
+  useEffect(() => {
+    if (!token || userRole !== "user") {
+      logout();
+      navigate("/login");
+    }
+  }, [token, userRole, navigate, logout]);
 
   // Extract name from email (everything before @)
-  const userName = userEmail ? userEmail.split("@")[0] : "User";
+  const userName = userEmail ? userEmail.split('@')[0] : 'User';
 
   useEffect(() => {
-    fetchComplaints();
-  }, []);
+    if (token && userRole === "user") {
+      fetchComplaints();
+    }
+  }, [token, userRole]);
 
   const fetchComplaints = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/complaints`, {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
       });
-
+      
       if (response.data && Array.isArray(response.data)) {
         setComplaints(response.data);
       } else {
@@ -45,26 +47,14 @@ const Dashboard = () => {
       }
     } catch (err) {
       console.error("Error fetching complaints:", err);
-
-      if (err.response?.status === 401) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("userEmail");
+      
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        logout();
         navigate("/login");
-      } else if (err.response?.status === 403) {
-        setError("Access forbidden. Please check your permissions.");
-      } else if (
-        err.code === "ECONNREFUSED" ||
-        err.message.includes("Network Error")
-      ) {
-        setError(
-          "Cannot connect to server. Please check if backend is running on port 3000."
-        );
+      } else if (err.code === 'ECONNREFUSED' || err.message.includes('Network Error')) {
+        setError(`Cannot connect to server. Please check if backend is running at ${API_BASE_URL}.`);
       } else if (err.response) {
-        setError(
-          `Server error: ${err.response.status} - ${
-            err.response.data?.message || err.response.statusText
-          }`
-        );
+        setError(`Server error: ${err.response.status} - ${err.response.data?.message || err.response.statusText}`);
       } else {
         setError(`Failed to load complaints: ${err.message}`);
       }
@@ -74,8 +64,7 @@ const Dashboard = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("userEmail");
+    logout();
     navigate("/login");
   };
 
@@ -84,7 +73,7 @@ const Dashboard = () => {
   };
 
   const handleComplaintSubmitted = (newComplaint) => {
-    setComplaints((prevComplaints) => [newComplaint, ...prevComplaints]);
+    setComplaints(prevComplaints => [newComplaint, ...prevComplaints]);
     setShowComplaintForm(false);
     alert("Complaint submitted successfully!");
   };
@@ -95,80 +84,71 @@ const Dashboard = () => {
 
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
-      case "pending":
-        return "#fdb81e";
-      case "in progress":
-        return "#1b4480";
-      case "resolved":
-        return "#00a91c";
-      case "rejected":
-        return "#d54309";
+      case 'pending':
+        return '#fdb81e';
+      case 'in progress':
+        return '#1b4480';
+      case 'resolved':
+        return '#00a91c';
+      case 'rejected':
+        return '#d54309';
       default:
-        return "#565c65";
+        return '#565c65';
     }
   };
 
   const getStatusBackground = (status) => {
     switch (status.toLowerCase()) {
-      case "pending":
-        return "#fff3cd";
-      case "in progress":
-        return "#e7f3ff";
-      case "resolved":
-        return "#e7f4e4";
-      case "rejected":
-        return "#f9dedc";
+      case 'pending':
+        return '#fff3cd';
+      case 'in progress':
+        return '#e7f3ff';
+      case 'resolved':
+        return '#e7f4e4';
+      case 'rejected':
+        return '#f9dedc';
       default:
-        return "#f0f0f0";
+        return '#f0f0f0';
     }
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
   if (loading) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          backgroundColor: "#f0f0f0",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily:
-            "'Public Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif",
-        }}
-      >
-        <div
-          style={{
-            backgroundColor: "white",
-            padding: "40px",
-            borderRadius: "4px",
-            textAlign: "center",
-            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-          }}
-        >
-          <div
-            style={{
-              width: "40px",
-              height: "40px",
-              border: "4px solid #f0f0f0",
-              borderTop: "4px solid #1b4480",
-              borderRadius: "50%",
-              animation: "spin 1s linear infinite",
-              margin: "0 auto 20px auto",
-            }}
-          ></div>
-          <h2 style={{ color: "#1b4480", margin: "0" }}>
-            Loading your dashboard...
-          </h2>
+      <div style={{
+        minHeight: "100vh",
+        backgroundColor: "#f0f0f0",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "'Public Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+      }}>
+        <div style={{
+          backgroundColor: "white",
+          padding: "40px",
+          borderRadius: "4px",
+          textAlign: "center",
+          boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)"
+        }}>
+          <div style={{
+            width: "40px",
+            height: "40px",
+            border: "4px solid #f0f0f0",
+            borderTop: "4px solid #1b4480",
+            borderRadius: "50%",
+            animation: "spin 1s linear infinite",
+            margin: "0 auto 20px auto"
+          }}></div>
+          <h2 style={{ color: "#1b4480", margin: "0" }}>Loading your dashboard...</h2>
         </div>
         <style>
           {`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}

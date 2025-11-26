@@ -1,174 +1,128 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
-import ComplaintForm from "../complaints/complaintForm.jsx";
+import { useAuth } from "../../App.jsx";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api";
 
-const Dashboard = () => {
+const StaffDashboard = () => {
   const navigate = useNavigate();
-  const [complaints, setComplaints] = useState([]);
+  const { userEmail, logout, token, userId } = useAuth();
+  const [assignedComplaints, setAssignedComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [showComplaintForm, setShowComplaintForm] = useState(false);
 
-  // Get user information from localStorage
-  const userEmail = localStorage.getItem("userEmail");
-  const token = localStorage.getItem("token");
-
-  // If no token, redirect to login
-  if (!token) {
-    navigate("/login");
-    return null;
-  }
-
-  // Extract name from email (everything before @)
-  const userName = userEmail ? userEmail.split("@")[0] : "User";
+  const staffName = userEmail ? userEmail.split('@')[0] : 'Staff';
 
   useEffect(() => {
-    fetchComplaints();
-  }, []);
+    if (token) {
+      fetchAssignedComplaints();
+    } else {
+      navigate("/staff/login");
+    }
+  }, [token]);
 
-  const fetchComplaints = async () => {
+  const fetchAssignedComplaints = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/complaints`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+      const response = await axios.get(`${API_BASE_URL}/staff/complaints`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (response.data && Array.isArray(response.data)) {
-        setComplaints(response.data);
-      } else {
-        setComplaints([]);
-      }
+      setAssignedComplaints(response.data || []);
     } catch (err) {
-      console.error("Error fetching complaints:", err);
-
-      if (err.response?.status === 401) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("userEmail");
-        navigate("/login");
-      } else if (err.response?.status === 403) {
-        setError("Access forbidden. Please check your permissions.");
-      } else if (
-        err.code === "ECONNREFUSED" ||
-        err.message.includes("Network Error")
-      ) {
-        setError(
-          "Cannot connect to server. Please check if backend is running on port 3000."
-        );
-      } else if (err.response) {
-        setError(
-          `Server error: ${err.response.status} - ${
-            err.response.data?.message || err.response.statusText
-          }`
-        );
+      console.error("Error fetching assigned complaints:", err);
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        logout();
+        navigate("/staff/login");
       } else {
-        setError(`Failed to load complaints: ${err.message}`);
+        setError(err.response?.data?.message || "Failed to fetch assigned complaints");
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("userEmail");
-    navigate("/login");
-  };
-
-  const handlePostComplaint = () => {
-    setShowComplaintForm(true);
-  };
-
-  const handleComplaintSubmitted = (newComplaint) => {
-    setComplaints((prevComplaints) => [newComplaint, ...prevComplaints]);
-    setShowComplaintForm(false);
-    alert("Complaint submitted successfully!");
-  };
-
-  const handleCloseComplaintForm = () => {
-    setShowComplaintForm(false);
+  const handleUpdateStatus = async (complaintId, newStatus) => {
+    try {
+      await axios.put(
+        `${API_BASE_URL}/staff/complaints/${complaintId}/status`,
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert("Complaint status updated successfully!");
+      fetchAssignedComplaints(); // Refresh data
+    } catch (err) {
+      console.error("Error updating complaint status:", err);
+      setError(err.response?.data?.message || "Failed to update status");
+    }
   };
 
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
-      case "pending":
-        return "#fdb81e";
-      case "in progress":
-        return "#1b4480";
-      case "resolved":
-        return "#00a91c";
-      case "rejected":
-        return "#d54309";
+      case 'pending':
+        return '#fdb81e';
+      case 'in progress':
+        return '#1b4480';
+      case 'resolved':
+        return '#00a91c';
+      case 'rejected':
+        return '#d54309';
       default:
-        return "#565c65";
+        return '#565c65';
     }
   };
 
   const getStatusBackground = (status) => {
     switch (status.toLowerCase()) {
-      case "pending":
-        return "#fff3cd";
-      case "in progress":
-        return "#e7f3ff";
-      case "resolved":
-        return "#e7f4e4";
-      case "rejected":
-        return "#f9dedc";
+      case 'pending':
+        return '#fff3cd';
+      case 'in progress':
+        return '#e7f3ff';
+      case 'resolved':
+        return '#e7f4e4';
+      case 'rejected':
+        return '#f9dedc';
       default:
-        return "#f0f0f0";
+        return '#f0f0f0';
     }
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
   if (loading) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          backgroundColor: "#f0f0f0",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily:
-            "'Public Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif",
-        }}
-      >
-        <div
-          style={{
-            backgroundColor: "white",
-            padding: "40px",
-            borderRadius: "4px",
-            textAlign: "center",
-            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-          }}
-        >
-          <div
-            style={{
-              width: "40px",
-              height: "40px",
-              border: "4px solid #f0f0f0",
-              borderTop: "4px solid #1b4480",
-              borderRadius: "50%",
-              animation: "spin 1s linear infinite",
-              margin: "0 auto 20px auto",
-            }}
-          ></div>
-          <h2 style={{ color: "#1b4480", margin: "0" }}>
-            Loading your dashboard...
-          </h2>
+      <div style={{
+        minHeight: "100vh",
+        backgroundColor: "#f0f0f0",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "'Public Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+      }}>
+        <div style={{
+          backgroundColor: "white",
+          padding: "40px",
+          borderRadius: "4px",
+          textAlign: "center",
+          boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)"
+        }}>
+          <div style={{
+            width: "40px",
+            height: "40px",
+            border: "4px solid #f0f0f0",
+            borderTop: "4px solid #1b4480",
+            borderRadius: "50%",
+            animation: "spin 1s linear infinite",
+            margin: "0 auto 20px auto"
+          }}></div>
+          <h2 style={{ color: "#1b4480", margin: "0" }}>Loading staff dashboard...</h2>
         </div>
         <style>
           {`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}
@@ -252,7 +206,7 @@ const Dashboard = () => {
                   lineHeight: "1.2",
                 }}
               >
-                Municipal ICMS
+                Municipal ICMS Staff
               </h1>
               <p
                 style={{
@@ -262,7 +216,7 @@ const Dashboard = () => {
                   fontWeight: "400",
                 }}
               >
-                Incident & Complaint Management System
+                Intelligent Complaint Management System
               </p>
             </div>
           </div>
@@ -278,7 +232,8 @@ const Dashboard = () => {
                   fontWeight: "400",
                 }}
               >
-                Welcome, {userName.charAt(0).toUpperCase() + userName.slice(1)}
+                Welcome,{" "}
+                {staffName.charAt(0).toUpperCase() + staffName.slice(1)}
               </p>
               <p
                 style={{
@@ -291,7 +246,7 @@ const Dashboard = () => {
               </p>
             </div>
             <button
-              onClick={handleLogout}
+              onClick={logout}
               style={{
                 backgroundColor: "#d54309",
                 color: "white",
@@ -332,7 +287,7 @@ const Dashboard = () => {
             padding: "0 20px",
           }}
         >
-          {/* Page Title and Action Button */}
+          {/* Page Title and Stats */}
           <div
             style={{
               display: "flex",
@@ -350,7 +305,7 @@ const Dashboard = () => {
                   color: "#1b4480",
                 }}
               >
-                Citizen Dashboard
+                Staff Dashboard
               </h2>
               <p
                 style={{
@@ -359,38 +314,12 @@ const Dashboard = () => {
                   color: "#565c65",
                 }}
               >
-                Manage your municipal service requests and complaints
+                Manage your assigned complaints and update their statuses
               </p>
             </div>
-            <button
-              onClick={handlePostComplaint}
-              style={{
-                backgroundColor: "#1b4480",
-                color: "white",
-                border: "none",
-                padding: "12px 24px",
-                borderRadius: "4px",
-                fontSize: "16px",
-                fontWeight: "600",
-                cursor: "pointer",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = "#0f3a6b";
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = "#1b4480";
-              }}
-            >
-              📝 Submit New Complaint
-            </button>
           </div>
 
-          {/* Statistics Cards */}
+          {/* Statistics Cards (Optional, can add later) */}
           <div
             style={{
               display: "grid",
@@ -419,7 +348,7 @@ const Dashboard = () => {
                   letterSpacing: "0.5px",
                 }}
               >
-                Total Complaints
+                Total Assigned
               </h3>
               <p
                 style={{
@@ -429,7 +358,7 @@ const Dashboard = () => {
                   color: "#1b4480",
                 }}
               >
-                {complaints.length}
+                {assignedComplaints.length}
               </p>
             </div>
 
@@ -453,7 +382,7 @@ const Dashboard = () => {
                   letterSpacing: "0.5px",
                 }}
               >
-                Pending
+                In Progress
               </h3>
               <p
                 style={{
@@ -464,8 +393,9 @@ const Dashboard = () => {
                 }}
               >
                 {
-                  complaints.filter((c) => c.status.toLowerCase() === "pending")
-                    .length
+                  assignedComplaints.filter(
+                    (c) => c.status.toLowerCase() === "in progress"
+                  ).length
                 }
               </p>
             </div>
@@ -501,7 +431,7 @@ const Dashboard = () => {
                 }}
               >
                 {
-                  complaints.filter(
+                  assignedComplaints.filter(
                     (c) => c.status.toLowerCase() === "resolved"
                   ).length
                 }
@@ -530,7 +460,7 @@ const Dashboard = () => {
             </div>
           )}
 
-          {/* Complaints Section */}
+          {/* Assigned Complaints List */}
           <div
             style={{
               backgroundColor: "white",
@@ -554,11 +484,10 @@ const Dashboard = () => {
                   color: "#1b4480",
                 }}
               >
-                Your Complaints
+                Your Assigned Complaints
               </h3>
             </div>
-
-            {complaints.length === 0 ? (
+            {assignedComplaints.length === 0 ? (
               <div
                 style={{
                   padding: "60px 24px",
@@ -578,7 +507,7 @@ const Dashboard = () => {
                     fontSize: "32px",
                   }}
                 >
-                  📋
+                  ✅
                 </div>
                 <h4
                   style={{
@@ -588,51 +517,18 @@ const Dashboard = () => {
                     color: "#565c65",
                   }}
                 >
-                  No complaints found
+                  No complaints currently assigned to you.
                 </h4>
-                <p
-                  style={{
-                    margin: "0 0 24px 0",
-                    fontSize: "14px",
-                    color: "#565c65",
-                  }}
-                >
-                  You haven't submitted any complaints yet. Submit your first
-                  complaint to get started.
-                </p>
-                <button
-                  onClick={handlePostComplaint}
-                  style={{
-                    backgroundColor: "#1b4480",
-                    color: "white",
-                    border: "none",
-                    padding: "12px 24px",
-                    borderRadius: "4px",
-                    fontSize: "16px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = "#0f3a6b";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = "#1b4480";
-                  }}
-                >
-                  Submit Your First Complaint
-                </button>
               </div>
             ) : (
               <div style={{ padding: "0" }}>
-                {complaints.map((complaint, index) => (
+                {assignedComplaints.map((complaint, index) => (
                   <div
                     key={complaint._id}
                     style={{
                       padding: "24px",
                       borderBottom:
-                        index < complaints.length - 1
+                        index < assignedComplaints.length - 1
                           ? "1px solid #d6d6d6"
                           : "none",
                       backgroundColor: "white",
@@ -692,6 +588,15 @@ const Dashboard = () => {
                               gap: "4px",
                             }}
                           >
+                            👤 {complaint.user?.email || "N/A"}
+                          </span>
+                          <span
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                          >
                             📅 {formatDate(complaint.createdAt)}
                           </span>
                         </div>
@@ -722,6 +627,32 @@ const Dashboard = () => {
                         >
                           {complaint.status}
                         </span>
+                        {complaint.status.toLowerCase() !== "resolved" &&
+                          complaint.status.toLowerCase() !== "rejected" && (
+                            <select
+                              onChange={(e) =>
+                                handleUpdateStatus(
+                                  complaint._id,
+                                  e.target.value
+                                )
+                              }
+                              defaultValue={complaint.status}
+                              style={{
+                                marginTop: "10px",
+                                padding: "8px",
+                                borderRadius: "4px",
+                                border: "1px solid #d6d6d6",
+                                backgroundColor: "#f0f0f0",
+                                cursor: "pointer",
+                                fontSize: "14px",
+                              }}
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="in progress">In Progress</option>
+                              <option value="resolved">Resolved</option>
+                              <option value="rejected">Rejected</option>
+                            </select>
+                          )}
                       </div>
                     </div>
                   </div>
@@ -760,16 +691,8 @@ const Dashboard = () => {
           </p>
         </div>
       </footer>
-
-      {/* Complaint Form Modal */}
-      {showComplaintForm && (
-        <ComplaintForm
-          onComplaintSubmitted={handleComplaintSubmitted}
-          onClose={handleCloseComplaintForm}
-        />
-      )}
     </div>
   );
 };
 
-export default Dashboard;
+export default StaffDashboard;
